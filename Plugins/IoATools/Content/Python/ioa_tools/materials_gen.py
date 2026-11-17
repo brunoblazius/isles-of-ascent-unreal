@@ -65,10 +65,14 @@ def _wind(mat, weight, weight_out, intensity, speed, x, y):
     mel.connect_material_expressions(weight, weight_out, fn, 'WindWeight')
     mel.connect_material_expressions(_scalar(mat, 'WindIntensity', intensity, x - 300, y + 120), '', fn, 'WindIntensity')
     mel.connect_material_expressions(_scalar(mat, 'WindSpeed', speed, x - 300, y + 200), '', fn, 'WindSpeed')
+    # AdditionalWPO is a required input: without it the material fails to compile.
+    zero = _expr(mat, unreal.MaterialExpressionConstant3Vector, x - 300, y + 280)
+    mel.connect_material_expressions(zero, '', fn, 'AdditionalWPO')
     mel.connect_material_property(fn, '', unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
 
 
 def _finish(mat):
+    mat.set_editor_property('used_with_instanced_static_meshes', True)
     mel.layout_material_expressions(mat)
     mel.recompile_material(mat)
     eal.save_loaded_asset(mat)
@@ -124,6 +128,12 @@ def build_grass():
     mel.connect_material_expressions(_scalar(mat, 'GradientPower', 0.7, -1000, 300), '', grad, 'Exp')
     mel.connect_material_property(_lerp(mat, root, tips, grad, -400, -150), '', unreal.MaterialProperty.MP_BASE_COLOR)
     mel.connect_material_property(_scalar(mat, 'Roughness', 0.8, -400, 100), '', unreal.MaterialProperty.MP_ROUGHNESS)
+    # World-space up normal on both faces: blades light exactly like the ground
+    # instead of half of them turning dark when seen from behind.
+    mat.set_editor_property('tangent_space_normal', False)
+    up = _expr(mat, unreal.MaterialExpressionConstant3Vector, -700, 450)
+    up.set_editor_property('constant', unreal.LinearColor(0, 0, 1, 1))
+    mel.connect_material_property(up, '', unreal.MaterialProperty.MP_NORMAL)
     _wind(mat, vc, 'R', 0.35, 0.8, -400, 300)
     return _finish(mat)
 
