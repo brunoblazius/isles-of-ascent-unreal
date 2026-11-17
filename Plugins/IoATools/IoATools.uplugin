@@ -1,0 +1,21 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Isles of Ascent Tools",
+	"Description": "Project toolsets for the AI Toolset Registry: editor commands, levels and landscape generation.",
+	"Category": "Other",
+	"CreatedBy": "Isles of Ascent",
+	"CanContainContent": true,
+	"EnabledByDefault": true,
+	"Plugins": [
+		{
+			"Name": "ToolsetRegistry",
+			"Enabled": true
+		},
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true
+		}
+	]
+}

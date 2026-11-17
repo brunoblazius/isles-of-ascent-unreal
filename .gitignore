@@ -17,6 +17,10 @@ Build/
 Plugins/**/Binaries/
 Plugins/**/Intermediate/
 
+# Python
+__pycache__/
+*.pyc
+
 # Blender backups
 *.blend1
 *.blend2
