@@ -126,7 +126,18 @@ def build_grass():
     grad = _expr(mat, unreal.MaterialExpressionPower, -700, 100)
     mel.connect_material_expressions(vc, 'R', grad, 'Base')
     mel.connect_material_expressions(_scalar(mat, 'GradientPower', 0.7, -1000, 300), '', grad, 'Exp')
-    mel.connect_material_property(_lerp(mat, root, tips, grad, -400, -150), '', unreal.MaterialProperty.MP_BASE_COLOR)
+    blade = _lerp(mat, root, tips, grad, -400, -150)
+    # Large world-space patches of lighter/darker green, like the reference meadow.
+    patches = _expr(mat, unreal.MaterialExpressionNoise, -700, -450)
+    patches.set_editor_property('scale', 0.0012)
+    patches.set_editor_property('levels', 3)
+    patches.set_editor_property('output_min', 0.0)
+    patches.set_editor_property('output_max', 1.0)
+    patch_tint = _color(mat, 'ColorPatch', (0.75, 0.85, 0.55), -700, -600)
+    white = _expr(mat, unreal.MaterialExpressionConstant3Vector, -700, -700)
+    white.set_editor_property('constant', unreal.LinearColor(1, 1, 1, 1))
+    tint = _lerp(mat, white, patch_tint, patches, -450, -500)
+    mel.connect_material_property(_multiply(mat, blade, tint, -200, -250), '', unreal.MaterialProperty.MP_BASE_COLOR)
     mel.connect_material_property(_scalar(mat, 'Roughness', 0.8, -400, 100), '', unreal.MaterialProperty.MP_ROUGHNESS)
     # World-space up normal on both faces: blades light exactly like the ground
     # instead of half of them turning dark when seen from behind.
