@@ -149,6 +149,44 @@ def build_grass():
     return _finish(mat)
 
 
+def build_grass_card(texture):
+    """Alpha-masked grass cards: many hair-thin blades per quad for a dense carpet.
+
+    The texture is grayscale blades (dark root, light tip) with alpha; colour
+    comes from root/tip parameters, large world patches and per-instance tint.
+    """
+    mat = _new_material('M_GrassCard')
+    mat.set_editor_property('two_sided', True)
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_MASKED)
+    mat.set_editor_property('opacity_mask_clip_value', 0.4)
+    tex = _expr(mat, unreal.MaterialExpressionTextureSampleParameter2D, -1300, -100)
+    tex.set_editor_property('parameter_name', 'BladeTexture')
+    tex.set_editor_property('texture', texture)
+    vc = _expr(mat, unreal.MaterialExpressionVertexColor, -1300, 250)
+    root = _color(mat, 'ColorRoot', (0.050, 0.150, 0.018), -1000, -400)
+    tip = _color(mat, 'ColorTip', (0.160, 0.380, 0.040), -1000, -250)
+    tip_alt = _color(mat, 'ColorTipVariation', (0.210, 0.400, 0.045), -1000, -100)
+    tips = _lerp(mat, tip, tip_alt, _expr(mat, unreal.MaterialExpressionPerInstanceRandom, -1000, 50), -750, -200)
+    blade = _lerp(mat, root, tips, tex, -500, -250, alpha_out='R')
+    patches = _expr(mat, unreal.MaterialExpressionNoise, -750, -600)
+    patches.set_editor_property('scale', 0.0012)
+    patches.set_editor_property('levels', 3)
+    patches.set_editor_property('output_min', 0.0)
+    patches.set_editor_property('output_max', 1.0)
+    white = _expr(mat, unreal.MaterialExpressionConstant3Vector, -750, -750)
+    white.set_editor_property('constant', unreal.LinearColor(1, 1, 1, 1))
+    tint = _lerp(mat, white, _color(mat, 'ColorPatch', (0.70, 0.82, 0.55), -750, -850), patches, -500, -650)
+    mel.connect_material_property(_multiply(mat, blade, tint, -250, -350), '', unreal.MaterialProperty.MP_BASE_COLOR)
+    mel.connect_material_property(tex, 'A', unreal.MaterialProperty.MP_OPACITY_MASK)
+    mel.connect_material_property(_scalar(mat, 'Roughness', 0.85, -250, 0), '', unreal.MaterialProperty.MP_ROUGHNESS)
+    mat.set_editor_property('tangent_space_normal', False)
+    up = _expr(mat, unreal.MaterialExpressionConstant3Vector, -500, 350)
+    up.set_editor_property('constant', unreal.LinearColor(0, 0, 1, 1))
+    mel.connect_material_property(up, '', unreal.MaterialProperty.MP_NORMAL)
+    _wind(mat, vc, 'R', 0.3, 0.9, -250, 450)
+    return _finish(mat)
+
+
 def build_landscape(grass_type=None):
     """Ground tinted like the grass root so blades blend into a continuous carpet.
 
