@@ -51,25 +51,31 @@ class LandscapeTools(unreal.ToolsetDefinition):
                 f'{file_path} has {len(data)} bytes; a {res.x}x{res.y} heightmap needs {expected}.')
 
         heights = struct.unpack(f'<{res.x * res.y}H', data)
-        world = LandscapeTools._world()
-        texture = unreal.RenderingLibrary.import_buffer_as_texture2d(
-            world, LandscapeTools._encode_png(heights, res.x, res.y))
-        if texture is None:
-            raise RuntimeError('Could not create the heightmap texture.')
-        texture.set_editor_property('srgb', False)
-        texture.set_editor_property('filter', unreal.TextureFilter.TF_NEAREST)
-
-        target = unreal.RenderingLibrary.create_render_target2d(
-            world, res.x, res.y, unreal.TextureRenderTargetFormat.RTF_RGBA32F)
-        canvas, size, context = unreal.RenderingLibrary.begin_draw_canvas_to_render_target(world, target)
-        canvas.draw_texture(
-            texture, unreal.Vector2D(0, 0), unreal.Vector2D(res.x, res.y),
-            unreal.Vector2D(0, 0), unreal.Vector2D(1, 1),
-            blend_mode=unreal.BlendMode.BLEND_OPAQUE)
-        unreal.RenderingLibrary.end_draw_canvas_to_render_target(world, context)
-
+        target = LandscapeTools._draw_to_target(heights, res, unreal.TextureRenderTargetFormat.RTF_RGBA32F)
         if not landscape.landscape_import_heightmap_from_render_target(target, True):
             raise RuntimeError('The landscape rejected the heightmap.')
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def import_weightmap_r8(landscape: unreal.Landscape, layer_name: str, file_path: str) -> None:
+        """Overwrites one paint layer's weights with a raw 8-bit file (one byte per vertex, row-major).
+
+        Args:
+            landscape: The landscape to modify.
+            layer_name: A paint layer registered on the landscape.
+            file_path: Absolute path of the raw file; 255 = full weight.
+        """
+        res = LandscapeTools._resolution(landscape)
+        with open(file_path, 'rb') as f:
+            data = f.read()
+        if len(data) != res.x * res.y:
+            raise ValueError(f'{file_path} has {len(data)} bytes; expected {res.x * res.y}.')
+        if layer_name not in [str(n) for n in landscape.get_target_layer_names()]:
+            raise ValueError(f'{layer_name} is not a paint layer of {landscape.get_name()}.')
+        heights_like = [b << 8 for b in data]  # reuse the RGBA8 encoder: weight lands in R
+        target = LandscapeTools._draw_to_target(heights_like, res, unreal.TextureRenderTargetFormat.RTF_RGBA8)
+        if not landscape.landscape_import_weightmap_from_render_target(target, layer_name):
+            raise RuntimeError(f'The landscape rejected the {layer_name} weights.')
 
     @toolset_registry.tool_call
     @staticmethod
@@ -95,6 +101,25 @@ class LandscapeTools(unreal.ToolsetDefinition):
     @staticmethod
     def _world() -> unreal.World:
         return unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+
+    @staticmethod
+    def _draw_to_target(values, res, target_format):
+        """Draws 16-bit values (high byte -> R, low byte -> G) into a new render target."""
+        world = LandscapeTools._world()
+        texture = unreal.RenderingLibrary.import_buffer_as_texture2d(
+            world, LandscapeTools._encode_png(values, res.x, res.y))
+        if texture is None:
+            raise RuntimeError('Could not create the source texture.')
+        texture.set_editor_property('srgb', False)
+        texture.set_editor_property('filter', unreal.TextureFilter.TF_NEAREST)
+        target = unreal.RenderingLibrary.create_render_target2d(world, res.x, res.y, target_format)
+        canvas, size, context = unreal.RenderingLibrary.begin_draw_canvas_to_render_target(world, target)
+        canvas.draw_texture(
+            texture, unreal.Vector2D(0, 0), unreal.Vector2D(res.x, res.y),
+            unreal.Vector2D(0, 0), unreal.Vector2D(1, 1),
+            blend_mode=unreal.BlendMode.BLEND_OPAQUE)
+        unreal.RenderingLibrary.end_draw_canvas_to_render_target(world, context)
+        return target
 
     @staticmethod
     def _resolution(landscape: unreal.Landscape) -> unreal.IntPoint:

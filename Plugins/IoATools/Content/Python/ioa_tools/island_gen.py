@@ -55,6 +55,39 @@ def height_at(x, y):
     return s * (top + hills)
 
 
+SAND_TOP = 1.2          # m: full sand at or below this height
+SAND_FADE = 1.3         # m: sand fades to grass over this band
+ROCK_SLOPE = 0.70       # rise/run where rock starts (~35 deg)
+ROCK_FADE = 0.20
+
+
+def write_layer_weights(path_prefix, width, height, origin_x, origin_y):
+    """Writes <prefix>_Grass/_Sand/_Rock.r8 weight files (bytes summing to ~255 per vertex)."""
+    h = [[height_at(origin_x + i, origin_y + j) for i in range(width)] for j in range(height)]
+    out = {'Grass': bytearray(), 'Sand': bytearray(), 'Rock': bytearray()}
+    for j in range(height):
+        row = h[j]
+        up = h[max(0, j - 1)]
+        dn = h[min(height - 1, j + 1)]
+        for i in range(width):
+            dx = (row[min(width - 1, i + 1)] - row[max(0, i - 1)]) / 2.0
+            dy = (dn[i] - up[i]) / 2.0
+            slope = (dx * dx + dy * dy) ** 0.5
+            rock = smoothstep(ROCK_SLOPE, ROCK_SLOPE + ROCK_FADE, slope)
+            sand = (1.0 - smoothstep(SAND_TOP, SAND_TOP + SAND_FADE, row[i])) * (1.0 - rock)
+            grass = 1.0 - rock - sand
+            r, s = round(rock * 255), round(sand * 255)
+            out['Rock'].append(r)
+            out['Sand'].append(s)
+            out['Grass'].append(max(0, 255 - r - s))
+    paths = {}
+    for name, data in out.items():
+        paths[name] = f'{path_prefix}_{name}.r8'
+        with open(paths[name], 'wb') as f:
+            f.write(bytes(data))
+    return paths
+
+
 def write_r16(file_path, width, height, origin_x, origin_y):
     """Writes the island as .r16; origin is the world position (m) of vertex 0."""
     values = []

@@ -10,7 +10,8 @@ import unreal
 
 MASTER_DIR = '/Game/IoA/Materials/Master'
 INSTANCE_DIR = '/Game/IoA/Materials/Instances'
-GRASS_WIND = '/Engine/Functions/Engine_MaterialFunctions01/WorldPositionOffset/SimpleGrassWind.SimpleGrassWind'
+LANDSCAPE_LAYERS = ('Grass', 'Sand', 'Rock')
+GRASS_WIND ='/Engine/Functions/Engine_MaterialFunctions01/WorldPositionOffset/SimpleGrassWind.SimpleGrassWind'
 
 mel = unreal.MaterialEditingLibrary
 eal = unreal.EditorAssetLibrary
@@ -196,32 +197,46 @@ def build_landscape(grass_type=None):
     mat = _new_material('M_Landscape')
     if grass_type is not None:
         _grass_output(mat, grass_type)
-    noise = _expr(mat, unreal.MaterialExpressionNoise, -900, 100)
+    noise = _expr(mat, unreal.MaterialExpressionNoise, -1300, 100)
     noise.set_editor_property('scale', 0.0015)
     noise.set_editor_property('levels', 4)
     noise.set_editor_property('output_min', 0.0)
     noise.set_editor_property('output_max', 1.0)
-    a = _color(mat, 'ColorGround', (0.040, 0.120, 0.012), -900, -250)
-    b = _color(mat, 'ColorGroundVariation', (0.090, 0.150, 0.020), -900, -100)
-    mel.connect_material_property(_lerp(mat, a, b, noise, -500, -100), '', unreal.MaterialProperty.MP_BASE_COLOR)
-    mel.connect_material_property(_scalar(mat, 'Roughness', 0.9, -500, 150), '', unreal.MaterialProperty.MP_ROUGHNESS)
+    grass = _lerp(mat, _color(mat, 'ColorGround', (0.040, 0.120, 0.012), -1300, -250),
+                  _color(mat, 'ColorGroundVariation', (0.090, 0.150, 0.020), -1300, -100), noise, -1000, -150)
+    sand = _lerp(mat, _color(mat, 'ColorSand', (0.420, 0.330, 0.200), -1300, 300),
+                 _color(mat, 'ColorSandWet', (0.250, 0.190, 0.110), -1300, 450), noise, -1000, 350)
+    rock = _lerp(mat, _color(mat, 'ColorRock', (0.180, 0.110, 0.070), -1300, 600),
+                 _color(mat, 'ColorRockVariation', (0.110, 0.075, 0.050), -1300, 750), noise, -1000, 650)
+    blend = _expr(mat, unreal.MaterialExpressionLandscapeLayerBlend, -700, 200)
+    inputs = []
+    for name in LANDSCAPE_LAYERS:
+        li = unreal.LayerBlendInput()
+        li.set_editor_property('layer_name', name)
+        li.set_editor_property('blend_type', unreal.LandscapeLayerBlendType.LB_WEIGHT_BLEND)
+        inputs.append(li)
+    blend.set_editor_property('layers', inputs)
+    for name, src in zip(LANDSCAPE_LAYERS, (grass, sand, rock)):
+        mel.connect_material_expressions(src, '', blend, f'Layer {name}')
+    mel.connect_material_property(blend, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    mel.connect_material_property(_scalar(mat, 'Roughness', 0.9, -500, 450), '', unreal.MaterialProperty.MP_ROUGHNESS)
     return _finish(mat)
 
 
 def _grass_output(mat, grass_type):
-    """Landscape Grass Output covering the whole landscape.
+    """Landscape Grass Output driven by the painted Grass layer.
 
     WorldPosition and VertexNormalWS do not carry usable values in the grass
     map pass (tested in UE 5.8: any height or slope mask zeroes all grass), so
-    exclusion must come from painted landscape layers instead.
+    exclusion comes from the painted layers.
     """
     # delete_all_material_expressions leaves grass output nodes behind, and a
     # material may only hold one, so remove stale ones explicitly.
     for old in unreal.ObjectIterator(unreal.MaterialExpressionLandscapeGrassOutput):
         if old.get_outer() == mat:
             mel.delete_material_expression(mat, old)
-    mask = _expr(mat, unreal.MaterialExpressionConstant, -950, 650)
-    mask.set_editor_property('r', 1.0)
+    mask = _expr(mat, unreal.MaterialExpressionLandscapeLayerSample, -950, 650)
+    mask.set_editor_property('parameter_name', 'Grass')
     out = _expr(mat, unreal.MaterialExpressionLandscapeGrassOutput, -700, 650)
     gi = unreal.GrassInput()
     gi.set_editor_property('name', 'Meadow')
