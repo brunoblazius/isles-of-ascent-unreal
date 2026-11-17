@@ -138,13 +138,15 @@ def build_grass():
     return _finish(mat)
 
 
-def build_landscape():
+def build_landscape(grass_type=None):
     """Ground tinted like the grass root so blades blend into a continuous carpet.
 
-    Layered painting (grass/dirt/sand/rock) and the runtime virtual texture come
-    in Phase 3 proper; this is the single-layer base.
+    With grass_type, grass covers the landscape. Layered painting (grass/dirt/sand/rock) and the runtime
+    virtual texture come in Phase 3 proper; this is the single-layer base.
     """
     mat = _new_material('M_Landscape')
+    if grass_type is not None:
+        _grass_output(mat, grass_type)
     noise = _expr(mat, unreal.MaterialExpressionNoise, -900, 100)
     noise.set_editor_property('scale', 0.0015)
     noise.set_editor_property('levels', 4)
@@ -155,6 +157,28 @@ def build_landscape():
     mel.connect_material_property(_lerp(mat, a, b, noise, -500, -100), '', unreal.MaterialProperty.MP_BASE_COLOR)
     mel.connect_material_property(_scalar(mat, 'Roughness', 0.9, -500, 150), '', unreal.MaterialProperty.MP_ROUGHNESS)
     return _finish(mat)
+
+
+def _grass_output(mat, grass_type):
+    """Landscape Grass Output covering the whole landscape.
+
+    WorldPosition and VertexNormalWS do not carry usable values in the grass
+    map pass (tested in UE 5.8: any height or slope mask zeroes all grass), so
+    exclusion must come from painted landscape layers instead.
+    """
+    # delete_all_material_expressions leaves grass output nodes behind, and a
+    # material may only hold one, so remove stale ones explicitly.
+    for old in unreal.ObjectIterator(unreal.MaterialExpressionLandscapeGrassOutput):
+        if old.get_outer() == mat:
+            mel.delete_material_expression(mat, old)
+    mask = _expr(mat, unreal.MaterialExpressionConstant, -950, 650)
+    mask.set_editor_property('r', 1.0)
+    out = _expr(mat, unreal.MaterialExpressionLandscapeGrassOutput, -700, 650)
+    gi = unreal.GrassInput()
+    gi.set_editor_property('name', 'Meadow')
+    gi.set_editor_property('grass_type', grass_type)
+    out.set_editor_property('grass_types', [gi])
+    mel.connect_material_expressions(mask, '', out, 'Meadow')
 
 
 def make_instance(name, parent):
