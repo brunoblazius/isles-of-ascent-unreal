@@ -245,6 +245,16 @@ def _grass_output(mat, grass_type):
     mel.connect_material_expressions(mask, '', out, 'Meadow')
 
 
+def build_water():
+    """Turquoise shallows fading to blue; the stock ocean is clear enough to hide wading legs."""
+    mi = make_instance('MI_Water_Ocean', unreal.load_asset('/Water/Materials/WaterSurface/Water_Material_Ocean'))
+    mel.set_material_instance_vector_parameter_value(mi, 'Absorption', unreal.LinearColor(6, 60, 150, 6))
+    mel.set_material_instance_vector_parameter_value(mi, 'Scattering', unreal.LinearColor(0.15, 0.7, 0.6, 1.5))
+    mel.update_material_instance(mi)
+    eal.save_loaded_asset(mi)
+    return mi
+
+
 def make_instance(name, parent):
     path = f'{INSTANCE_DIR}/{name}'
     if eal.does_asset_exist(path):

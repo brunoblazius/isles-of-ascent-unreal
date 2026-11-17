@@ -55,8 +55,8 @@ def height_at(x, y):
     return s * (top + hills)
 
 
-SAND_TOP = 1.2          # m: full sand at or below this height
-SAND_FADE = 1.3         # m: sand fades to grass over this band
+SAND_TOP = 0.3          # m: full sand at or below this height
+SAND_FADE = 0.7         # m: sand fades to grass over this band
 ROCK_SLOPE = 0.70       # rise/run where rock starts (~35 deg)
 ROCK_FADE = 0.20
 
