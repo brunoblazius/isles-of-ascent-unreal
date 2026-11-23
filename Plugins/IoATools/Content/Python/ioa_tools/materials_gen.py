@@ -102,6 +102,41 @@ def build_foliage():
     return _finish(mat)
 
 
+def build_foliage_card(texture):
+    """Masked leaf cards over a solid canopy core: leaf-cut silhouette, cloud-soft shading.
+
+    The texture is a grayscale leaf cluster with alpha; the core samples its opaque
+    centre. Colours follow M_Foliage (occlusion in VC.A, per-lobe variation in VC.B).
+    """
+    mat = _new_material('M_FoliageCard')
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_TWO_SIDED_FOLIAGE)
+    mat.set_editor_property('two_sided', True)
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_MASKED)
+    mat.set_editor_property('opacity_mask_clip_value', 0.4)
+    tex = _expr(mat, unreal.MaterialExpressionTextureSampleParameter2D, -1400, -450)
+    tex.set_editor_property('parameter_name', 'LeafTexture')
+    tex.set_editor_property('texture', texture)
+    vc = _expr(mat, unreal.MaterialExpressionVertexColor, -1400, 0)
+    dark = _color(mat, 'ColorShadow', (0.020, 0.075, 0.012), -1100, -300)
+    light = _color(mat, 'ColorLight', (0.180, 0.420, 0.045), -1100, -150)
+    warm = _color(mat, 'ColorVariation', (0.300, 0.420, 0.040), -1100, 0)
+    occ = _expr(mat, unreal.MaterialExpressionPower, -850, 150)
+    mel.connect_material_expressions(vc, 'A', occ, 'Base')
+    mel.connect_material_expressions(_scalar(mat, 'OcclusionContrast', 1.6, -1100, 200), '', occ, 'Exp')
+    base = _lerp(mat, dark, light, occ, -600, -200)
+    varied = _lerp(mat, base, warm, _multiply(mat, vc, _scalar(mat, 'VariationAmount', 0.35, -1100, 320), -850, 300, 'B'), -350, -100)
+    # Leaf shading from the texture, softened so the cluster reads as one mass.
+    one = _expr(mat, unreal.MaterialExpressionConstant, -1100, -520)
+    one.set_editor_property('r', 1.0)
+    leaf_shade = _lerp(mat, _scalar(mat, 'LeafShadeMin', 0.7, -1100, -600), one, tex, -850, -500, alpha_out='R')
+    mel.connect_material_property(_multiply(mat, varied, leaf_shade, -150, -250), '', unreal.MaterialProperty.MP_BASE_COLOR)
+    mel.connect_material_property(tex, 'A', unreal.MaterialProperty.MP_OPACITY_MASK)
+    mel.connect_material_property(_color(mat, 'SubsurfaceColor', (0.25, 0.45, 0.04), -350, 150), '', unreal.MaterialProperty.MP_SUBSURFACE_COLOR)
+    mel.connect_material_property(_scalar(mat, 'Roughness', 0.75, -350, 300), '', unreal.MaterialProperty.MP_ROUGHNESS)
+    _wind(mat, vc, 'R', 0.25, 0.6, -350, 450)
+    return _finish(mat)
+
+
 def build_bark():
     """Reddish-brown bark, darker at the root."""
     mat = _new_material('M_Bark')
