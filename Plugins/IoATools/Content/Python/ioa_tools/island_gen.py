@@ -57,7 +57,7 @@ def height_at(x, y):
 
 SAND_TOP = 0.3          # m: full sand at or below this height
 SAND_FADE = 0.7         # m: sand fades to grass over this band
-ROCK_SLOPE = 0.70       # rise/run where rock starts (~35 deg)
+ROCK_SLOPE = 1.40       # rise/run where rock starts (~55 deg; boulder walls cover the rest)
 ROCK_FADE = 0.20
 
 

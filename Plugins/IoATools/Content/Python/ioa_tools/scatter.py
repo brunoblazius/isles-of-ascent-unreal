@@ -91,6 +91,65 @@ def _poisson(rng, count, spacing, accept):
     return pts
 
 
+CLIFF_STEEP = 1.5  # m of drop per m: only the near-vertical wall gets rock
+
+
+def cliffs(rng):
+    """Builds the sea cliffs from the kit's boulders, scaled up and heavily overlapped.
+
+    Walks the coastline; where the terrain drops near-vertically it stacks tiers of
+    giant boulders hugging the face, the top tier ending at the cliff edge, with
+    smaller stones at the foot. Gentle slopes are left to grass and outcrops.
+    """
+    walls, rubble = [], []
+    theta = 0.0
+    while theta < math.tau:
+        c, s = math.cos(theta), math.sin(theta)
+        profile = [(r, ig.height_at(c * r, s * r)) for r in range(120, 460)]
+        drops = [(r, h0 - h1) for (r, h0), (_, h1) in zip(profile, profile[1:])]
+        r_edge, steep = max(drops, key=lambda d: d[1])
+        step = rng.uniform(9.0, 13.0) / max(r_edge, 1)
+        if steep < CLIFF_STEEP:
+            theta += step
+            continue
+        top = max(h for r, h in profile if r <= r_edge)
+        zc = rng.uniform(1.0, 4.0)
+        while True:
+            sc = rng.uniform(4.0, 6.0)          # boulder ~16-25 m across, ~14-20 m tall
+            half = 1.7 * sc                     # half height of the scaled boulder
+            last = zc + half >= top - 1
+            if last:
+                zc = top - half + rng.uniform(-1.5, 0.5)
+            r_t = next((r for r, h in reversed(profile) if h >= zc and r <= r_edge + 30), r_edge)
+            r_t += rng.uniform(-1.0, 2.0)
+            walls.append(unreal.Transform(
+                unreal.Vector(c * r_t * 100, s * r_t * 100, zc * 100),
+                unreal.Rotator(roll=rng.uniform(-25, 25), pitch=rng.uniform(-25, 25), yaw=rng.uniform(0, 360)),
+                unreal.Vector(sc * rng.uniform(0.85, 1.15), sc, sc * rng.uniform(0.9, 1.2))))
+            if last:
+                break
+            zc += half * rng.uniform(1.1, 1.4)
+        for _ in range(rng.randint(1, 3)):       # rubble at the foot of the wall
+            r_f = r_edge + rng.uniform(5, 14)
+            sc = rng.uniform(1.5, 3.5)
+            rubble.append(unreal.Transform(
+                unreal.Vector(c * r_f * 100, s * r_f * 100, (ig.height_at(c * r_f, s * r_f) - 0.5) * 100),
+                unreal.Rotator(roll=rng.uniform(-15, 15), pitch=rng.uniform(-15, 15), yaw=rng.uniform(0, 360)),
+                unreal.Vector(sc, sc, sc)))
+        theta += step
+    holder = _holder('Cliffs')
+    report = {}
+    for name, xs in (('Stones/SM_Stone_Boulder_1', walls), ('Stones/SM_Stone_3', rubble)):
+        # Plain ISM: few, huge instances (a HISM cluster tree culled giant instances before).
+        comp = ActorTools.add_component(
+            holder, unreal.InstancedStaticMeshComponent.static_class(), 'ISM_' + name.split('/')[-1])
+        comp.set_static_mesh(unreal.load_asset(KIT + name))
+        comp.set_collision_enabled(unreal.CollisionEnabled.QUERY_AND_PHYSICS)
+        comp.add_instances(xs, False, True)
+        report['Cliff_' + name.split('/')[-1]] = comp.get_instance_count()
+    return report
+
+
 def scatter(seed=21):
     rng = random.Random(seed)
     report = {}
@@ -172,6 +231,8 @@ def scatter(seed=21):
     holder = _holder('Foliage_Flowers')
     for name, xs in flowers.items():
         report[name] = _hism(holder, name, xs, collision=False, cull_end=7000, shadows=False)
+
+    report.update(cliffs(rng))
 
     # Tall grass comes from the kit's landscape grass types (see materials_gen.build_landscape).
     _holder('Foliage_Grass').destroy_actor()
