@@ -124,12 +124,25 @@ def scatter(seed=21):
     # Rocks: boulder field at the quarry, small clusters scattered in the groves.
     rocks = {'Stones/SM_Stone_1': [], 'Stones/SM_Stone_2': [], 'Stones/SM_Stone_3': [], 'Stones/SM_Stone_Boulder_1': []}
     qx, qy, qr = QUARRY
-    for _ in range(70):
+    for _ in range(110):
         a, d = rng.uniform(0, math.tau), qr * math.sqrt(rng.random())
         x, y = qx + math.cos(a) * d, qy + math.sin(a) * d
         if usable(x, y, ROCK_SLOPE):
-            name = rng.choice(['Stones/SM_Stone_Boulder_1', 'Stones/SM_Stone_3', 'Stones/SM_Stone_3', 'Stones/SM_Stone_2'])
-            rocks[name].append(_xf(rng, x, y, rng.uniform(0.7, 1.3), sink=0.4, tilt=8))
+            name = rng.choice(['Stones/SM_Stone_Boulder_1', 'Stones/SM_Stone_Boulder_1', 'Stones/SM_Stone_3', 'Stones/SM_Stone_2'])
+            rocks[name].append(_xf(rng, x, y, rng.uniform(1.2, 2.6), sink=0.6, tilt=8))
+    # Big rock outcrops all over the island: a boulder or two with rubble around them.
+    outcrops = _poisson(rng, 45, 35, lambda x, y: usable(x, y, ROCK_SLOPE))
+    for cx, cy in outcrops:
+        for _ in range(rng.randint(1, 2)):
+            x, y = cx + rng.uniform(-3, 3), cy + rng.uniform(-3, 3)
+            rocks[rng.choice(['Stones/SM_Stone_Boulder_1', 'Stones/SM_Stone_3'])].append(
+                _xf(rng, x, y, rng.uniform(1.0, 2.2), sink=0.6, tilt=6))
+        for _ in range(rng.randint(2, 5)):
+            a, d = rng.uniform(0, math.tau), rng.uniform(3, 9)
+            x, y = cx + math.cos(a) * d, cy + math.sin(a) * d
+            if usable(x, y, ROCK_SLOPE):
+                rocks[rng.choice(['Stones/SM_Stone_1', 'Stones/SM_Stone_2'])].append(
+                    _xf(rng, x, y, rng.uniform(0.6, 1.4), sink=0.3, tilt=10))
     centers = _poisson(rng, 35, 25, lambda x, y: usable(x, y, ROCK_SLOPE))
     for cx, cy in centers:
         for _ in range(rng.randint(2, 5)):
