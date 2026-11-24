@@ -83,10 +83,11 @@ def apply_forest_pack(world=None):
 
     s = volume.settings
     values = {
-        'auto_exposure_bias': 0.7,
+        # The listing shots are brighter and a touch more saturated than the demo map.
+        'auto_exposure_bias': 1.1,
         'auto_exposure_min_brightness': 1.0,
         'auto_exposure_max_brightness': 2.0,
-        'color_saturation': unreal.Vector4(1.0, 1.0, 1.0, 1.0),
+        'color_saturation': unreal.Vector4(1.0, 1.0, 1.0, 1.08),
         'color_contrast': unreal.Vector4(1.1, 1.1, 1.1, 1.0),
         'color_gamma': unreal.Vector4(0.95, 0.95, 0.95, 1.0),
         'color_gain_highlights': unreal.Vector4(1.0, 1.0, 1.0, 1.0),

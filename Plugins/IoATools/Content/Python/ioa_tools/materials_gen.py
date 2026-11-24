@@ -270,14 +270,20 @@ def _grass_output(mat, grass_type):
     for old in unreal.ObjectIterator(unreal.MaterialExpressionLandscapeGrassOutput):
         if old.get_outer() == mat:
             mel.delete_material_expression(mat, old)
+    # A single grass type or {input name: grass type}; every input follows the Grass layer.
+    types = grass_type if isinstance(grass_type, dict) else {'Meadow': grass_type}
     mask = _expr(mat, unreal.MaterialExpressionLandscapeLayerSample, -950, 650)
     mask.set_editor_property('parameter_name', 'Grass')
     out = _expr(mat, unreal.MaterialExpressionLandscapeGrassOutput, -700, 650)
-    gi = unreal.GrassInput()
-    gi.set_editor_property('name', 'Meadow')
-    gi.set_editor_property('grass_type', grass_type)
-    out.set_editor_property('grass_types', [gi])
-    mel.connect_material_expressions(mask, '', out, 'Meadow')
+    inputs = []
+    for name, gt in types.items():
+        gi = unreal.GrassInput()
+        gi.set_editor_property('name', name)
+        gi.set_editor_property('grass_type', gt)
+        inputs.append(gi)
+    out.set_editor_property('grass_types', inputs)
+    for name in types:
+        mel.connect_material_expressions(mask, '', out, name)
 
 
 def build_water():

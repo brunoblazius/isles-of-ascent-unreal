@@ -109,14 +109,18 @@ def scatter(seed=21):
     for name, xs in kinds.items():
         report[name] = _hism(holder, name, xs, collision=True)
 
-    # Bushes: under and around the trees, plus some along grove edges.
+    # Bushes: a dense understory around the trees (the listing shots read as walls of
+    # green between trunks), plus thickets along the grove edges.
     bushes = {'Foliage/SM_Fol_Bush_1': [], 'Foliage/SM_Fol_Bush_2': []}
     for x, y in trees:
-        for _ in range(rng.randint(1, 4)):
-            a, d = rng.uniform(0, math.tau), rng.uniform(2.5, 8)
+        for _ in range(rng.randint(3, 7)):
+            a, d = rng.uniform(0, math.tau), rng.uniform(1.5, 7)
             bx, by = x + math.cos(a) * d, y + math.sin(a) * d
             if usable(bx, by, TREE_SLOPE):
-                bushes[rng.choice(list(bushes))].append(_xf(rng, bx, by, rng.uniform(0.7, 1.2), sink=0.15))
+                bushes[rng.choice(list(bushes))].append(_xf(rng, bx, by, rng.uniform(0.8, 1.4), sink=0.15))
+    edges = _poisson(rng, 500, 4, lambda x, y: usable(x, y, TREE_SLOPE) and 0.15 < groves(x, y) < 0.55)
+    for x, y in edges:
+        bushes[rng.choice(list(bushes))].append(_xf(rng, x, y, rng.uniform(0.9, 1.5), sink=0.15))
     holder = _holder('Foliage_Bushes')
     for name, xs in bushes.items():
         report[name] = _hism(holder, name, xs, collision=False)
@@ -154,9 +158,9 @@ def scatter(seed=21):
     for name, xs in rocks.items():
         report[name] = _hism(holder, name, xs, collision=True)
 
-    # Flowers: dense patches in the open meadow, sparse ones at grove edges.
+    # Flowers: patches in the open meadow and along the grove edges.
     flowers = {f'Foliage/SM_Fol_Flower_Clump_{i}': [] for i in (1, 2, 3)}
-    patches = _poisson(rng, 60, 18, lambda x, y: usable(x, y, ROCK_SLOPE) and groves(x, y) < 0.6)
+    patches = _poisson(rng, 110, 14, lambda x, y: usable(x, y, ROCK_SLOPE) and groves(x, y) < 0.7)
     for px, py in patches:
         name = rng.choice(list(flowers))
         radius = rng.uniform(3, 8)
@@ -169,14 +173,6 @@ def scatter(seed=21):
     for name, xs in flowers.items():
         report[name] = _hism(holder, name, xs, collision=False, cull_end=7000, shadows=False)
 
-    # Tall grass clumps: everywhere on grass, thicker near groves.
-    grass = {f'Foliage/SM_Fol_Grass_Clump_{i}': [] for i in range(1, 6)}
-    for _ in range(9000):
-        x, y = rng.uniform(-330, 330), rng.uniform(-330, 330)
-        if rng.random() < 0.35 + 0.65 * groves(x, y) and usable(x, y, ROCK_SLOPE):
-            grass[rng.choice(list(grass))].append(_xf(rng, x, y, rng.uniform(0.8, 1.3), sink=0.05))
-    holder = _holder('Foliage_Grass')
-    for name, xs in grass.items():
-        report[name] = _hism(holder, name, xs, collision=False, cull_end=5000, shadows=False)
-
+    # Tall grass comes from the kit's landscape grass types (see materials_gen.build_landscape).
+    _holder('Foliage_Grass').destroy_actor()
     return report
